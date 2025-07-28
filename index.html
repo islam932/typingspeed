@@ -1,44 +1,1019 @@
 <!DOCTYPE html>
-<html lang="en">
 
-
+<html lang="ar" dir="rtl">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Islam</title>
-    <link rel="stylesheet" href="main.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400&display=swap" rel="stylesheet">
+
+<meta charset="UTF-8" />
+
+<title>To-Do List</title>
+
+<script src="https://unpkg.com/interactjs/dist/interact.min.js"></script>
+
+<style>
+
+:root {
+
+--highlight: #ff9800;
+
+--success: #4caf50;
+
+--text-color: #f1f1f1;
+
+--font: 'Segoe UI', sans-serif;
+
+--selection-color: rgba(255, 152, 0, 0.3);
+
+--selection-border: #ff9800;
+
+}
+
+* {
+
+box-sizing: border-box;
+
+transition: all 0.15s ease-out;
+
+user-select: none;
+
+}
+
+body {
+
+background-color: #454545;
+
+margin: 0;
+
+font-family: var(--font);
+
+color: var(--text-color);
+
+min-height: 100vh;
+
+position: relative;
+
+overflow: hidden;
+
+}
+
+.board {
+
+position: relative;
+
+width: 10000px;
+
+height: 10000px;
+
+transform: translate(0px, 0px);
+
+cursor: grab;
+
+}
+
+.board.dragging {
+
+cursor: grabbing;
+
+}
+
+.task {
+
+background: linear-gradient(135deg, #1e1e1e 0%, #292929 100%);
+
+padding: 15px;
+
+padding-right: 25px;
+
+border-radius: 25px;
+
+box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+
+display: flex;
+
+flex-direction: column;
+
+align-items: right;
+
+position: absolute;
+
+border: 2px solid black;
+
+transition: border 0.15s ease-out, background 0.15s ease-out;
+
+cursor: pointer;
+
+}
+
+.task.selected {
+
+border-color: var(--selection-border);
+
+background: var(--selection-color);
+
+}
+
+.task:not(.checked):hover {
+
+border-color: var(--highlight);
+
+background: black;
+
+}
+
+.task:not(.checked):hover .task-name {
+
+color: var(--highlight);
+
+}
+
+.task.checked {
+
+background: linear-gradient(135deg, #388e3c, #66bb6a);
+
+color: #fff;
+
+}
+
+.task-name {
+
+font-size: 23px;
+
+text-align: right;
+
+font-weight: bold;
+
+}
+
+.check-icon {
+
+position: absolute;
+
+top: 15px;
+
+left: 15px;
+
+font-size: 23px;
+
+}
+
+.task.checked .check-icon::before {
+
+content: "✔️";
+
+}
+
+.task:not(.checked) .check-icon::before {
+
+content: "⬜";
+
+}
+
+.reset-button {
+
+position: fixed;
+
+bottom: 0px;
+
+left: 0px;
+
+padding: 1px;
+
+}
+
+.board {
+
+cursor: default !important;
+
+}
+
+.task {
+
+cursor: pointer !important;
+
+}
+
+.task.checked {
+
+cursor: default !important;
+
+}
+
+.selection-box {
+
+position: absolute;
+
+border: 2px dashed var(--selection-border);
+
+background: var(--selection-color);
+
+pointer-events: none;
+
+display: none;
+
+z-index: 1000;
+
+}
+
+.status-bar {
+
+position: fixed;
+
+top: 10px;
+
+left: 10px;
+
+background: rgba(0, 0, 0, 0.7);
+
+color: var(--text-color);
+
+padding: 5px 10px;
+
+border-radius: 5px;
+
+font-size: 12px;
+
+z-index: 1001;
+
+}
+
+</style>
+
 </head>
 
-
-
 <body>
-    <div class="game">
-        <div class="name">Typing Speed Test Game</div>
-        <div class="container">
-            <div class="message">
-                You Are Playing On
-                <span class="lvl"></span> Level & You Have <span class="seconds"></span> Seconds To Type The Word
-            </div>
-            <div class="start">Start Playing</div>
-            <div class="the-word"></div>
-            <input type="text" class="input">
-            <div class="upcoming-words">Words Will Show Here</div>
-            <div class="control">
-                <div class="time">Time Left: <span></span> Seconds</div>
-                <div class="score">Score: <span class="got">0</span> from <span class="total"></span></div>
-            </div>
-            <div class="finish"></div>
-        </div>
-    </div>
 
-    
-    <script src="main.js"></script>
+<div class="status-bar" id="statusBar">اضغط Ctrl+Z للتراجع | Ctrl+Y للإعادة</div>
+
+<div class="board" id="taskList"></div>
+
+<div class="selection-box" id="selectionBox"></div>
+
+<div class="reset-button" onclick="manualReset()"></div>
+
+<script>
+
+const defaultTasks = [
+
+{ id: "coding", name: "💻 برمجة" },
+
+{ id: "2", name: "فيديو برمجة" },
+
+{ id: "3", name: "فيديوهين برمجة" },
+
+{ id: "4", name: "3 فيديوهات برمجة" },
+
+{ id: "5", name: "4 فيديوهات برمجة" },
+
+{ id: "6", name: "5 فيديوهات برمجة" },
+
+{ id: "10", name: "عبد الله الشريف" },
+
+{ id: "7", name: "دوافع العلم والعيلة" },
+
+{ id: "11", name: "دوافع" },
+
+{ id: "8", name: "الفولدرز" },
+
+{ id: "9", name: "الملاحظات" },
+
+{ id: "1", name: "كل المهام" },
+
+{ id: "better", name: "1% أفضل" },
+
+{ id: "quran", name: "📖 قراءة قرآن" },
+
+{ id: "zikr", name: "ذكر" },
+
+{ id: "dua", name: "دعاء" },
+
+{ id: "morning_azkar", name: "أذكار صباح" },
+
+{ id: "evening_azkar", name: "أذكار مساء" },
+
+{ id: "brush1", name: "غسل سنان" },
+
+{ id: "brush2", name: "غسل سنان مرتين" },
+
+{ id: "exercise", name: "تمارين" },
+
+{ id: "diet", name: "دايت" },
+
+];
+
+let storedData = JSON.parse(localStorage.getItem("to_do") || "{}");
+
+let boardPosition = JSON.parse(localStorage.getItem("board_position") || "{}");
+
+// Selection and Undo/Redo state
+
+let selectedTasks = new Set();
+
+let isCtrlPressed = false;
+
+let isDraggingSelection = false;
+
+let isSelectingWithBox = false;
+
+let selectionStartX = 0;
+
+let selectionStartY = 0;
+
+let undoStack = [];
+
+let redoStack = [];
+
+const MAX_UNDO_STEPS = 50;
+
+const tasks = defaultTasks.map(task => {
+
+const stored = storedData[task.id] || {};
+
+return {
+
+id: task.id,
+
+name: task.name,
+
+streak: stored.streak || 0,
+
+checked: stored.checked || false,
+
+x: stored.x || Math.random() * 1000,
+
+y: stored.y || Math.random() * 750,
+
+width: stored.width || 750,
+
+height: stored.height || 500,
+
+};
+
+});
+
+const taskList = document.getElementById("taskList");
+
+const selectionBox = document.getElementById("selectionBox");
+
+const statusBar = document.getElementById("statusBar");
+
+// Undo/Redo functionality
+
+function saveState() {
+
+const state = {
+
+tasks: JSON.parse(JSON.stringify(tasks)),
+
+boardPosition: { transformX, transformY }
+
+};
+
+undoStack.push(state);
+
+if (undoStack.length > MAX_UNDO_STEPS) {
+
+undoStack.shift();
+
+}
+
+redoStack = []; // Clear redo stack when new action is performed
+
+updateStatusBar();
+
+}
+
+function undo() {
+
+if (undoStack.length > 0) {
+
+const currentState = {
+
+tasks: JSON.parse(JSON.stringify(tasks)),
+
+boardPosition: { transformX, transformY }
+
+};
+
+redoStack.push(currentState);
+
+const previousState = undoStack.pop();
+
+restoreState(previousState);
+
+updateStatusBar();
+
+}
+
+}
+
+function redo() {
+
+if (redoStack.length > 0) {
+
+const currentState = {
+
+tasks: JSON.parse(JSON.stringify(tasks)),
+
+boardPosition: { transformX, transformY }
+
+};
+
+undoStack.push(currentState);
+
+const nextState = redoStack.pop();
+
+restoreState(nextState);
+
+updateStatusBar();
+
+}
+
+}
+
+function restoreState(state) {
+
+// Restore tasks
+
+tasks.length = 0;
+
+tasks.push(...state.tasks);
+
+// Restore board position
+
+transformX = state.boardPosition.transformX;
+
+transformY = state.boardPosition.transformY;
+
+taskList.style.transform = `translate(${transformX}px, ${transformY}px)`;
+
+// Clear selection
+
+selectedTasks.clear();
+
+saveTasks();
+
+saveBoardPosition();
+
+renderTasks();
+
+}
+
+function updateStatusBar() {
+
+const undoCount = undoStack.length;
+
+const redoCount = redoStack.length;
+
+const selectedCount = selectedTasks.size;
+
+let status = `Ctrl+Z للتراجع (${undoCount}) | Ctrl+Y للإعادة (${redoCount})`;
+
+if (selectedCount > 0) {
+
+status += ` | المحدد: ${selectedCount} مهمة`;
+
+}
+
+statusBar.textContent = status;
+
+}
+
+// Selection functionality
+
+function selectTask(taskId, addToSelection = false) {
+
+if (!addToSelection) {
+
+selectedTasks.clear();
+
+}
+
+selectedTasks.add(taskId);
+
+renderTasks();
+
+updateStatusBar();
+
+}
+
+function deselectTask(taskId) {
+
+selectedTasks.delete(taskId);
+
+renderTasks();
+
+updateStatusBar();
+
+}
+
+function clearSelection() {
+
+selectedTasks.clear();
+
+renderTasks();
+
+updateStatusBar();
+
+}
+
+function isTaskInSelectionBox(task, boxX, boxY, boxWidth, boxHeight) {
+
+const taskCenterX = task.x + task.width / 2;
+
+const taskCenterY = task.y + task.height / 2;
+
+return taskCenterX >= boxX && taskCenterX <= boxX + boxWidth &&
+
+taskCenterY >= boxY && taskCenterY <= boxY + boxHeight;
+
+}
+
+// Event listeners
+
+document.addEventListener('keydown', (e) => {
+
+if (e.ctrlKey && e.key === 'z') {
+
+e.preventDefault();
+
+undo();
+
+} else if (e.ctrlKey && e.key === 'y') {
+
+e.preventDefault();
+
+redo();
+
+} else if (e.key === 'Control') {
+
+isCtrlPressed = true;
+
+} else if (e.key === 'Escape') {
+
+clearSelection();
+
+}
+
+});
+
+document.addEventListener('keyup', (e) => {
+
+if (e.key === 'Control') {
+
+isCtrlPressed = false;
+
+}
+
+});
+
+// Mouse events for selection box
+
+document.addEventListener('mousedown', (e) => {
+
+if (e.target === taskList && !isCtrlPressed) {
+
+isSelectingWithBox = true;
+
+selectionStartX = e.clientX - taskList.getBoundingClientRect().left - transformX;
+
+selectionStartY = e.clientY - taskList.getBoundingClientRect().top - transformY;
+
+selectionBox.style.left = `${selectionStartX}px`;
+
+selectionBox.style.top = `${selectionStartY}px`;
+
+selectionBox.style.width = '0px';
+
+selectionBox.style.height = '0px';
+
+selectionBox.style.display = 'block';
+
+clearSelection();
+
+}
+
+});
+
+document.addEventListener('mousemove', (e) => {
+
+if (isSelectingWithBox) {
+
+const currentX = e.clientX - taskList.getBoundingClientRect().left - transformX;
+
+const currentY = e.clientY - taskList.getBoundingClientRect().top - transformY;
+
+const width = Math.abs(currentX - selectionStartX);
+
+const height = Math.abs(currentY - selectionStartY);
+
+const left = Math.min(currentX, selectionStartX);
+
+const top = Math.min(currentY, selectionStartY);
+
+selectionBox.style.left = `${left}px`;
+
+selectionBox.style.top = `${top}px`;
+
+selectionBox.style.width = `${width}px`;
+
+selectionBox.style.height = `${height}px`;
+
+// Select tasks within the box
+
+tasks.forEach(task => {
+
+if (isTaskInSelectionBox(task, left, top, width, height)) {
+
+selectedTasks.add(task.id);
+
+} else {
+
+selectedTasks.delete(task.id);
+
+}
+
+});
+
+renderTasks();
+
+updateStatusBar();
+
+}
+
+});
+
+document.addEventListener('mouseup', (e) => {
+
+if (isSelectingWithBox) {
+
+isSelectingWithBox = false;
+
+selectionBox.style.display = 'none';
+
+}
+
+});
+
+function saveTasks() {
+
+const dataToSave = {};
+
+tasks.forEach(task => {
+
+dataToSave[task.id] = {
+
+streak: task.streak,
+
+checked: task.checked,
+
+x: task.x,
+
+y: task.y,
+
+width: task.width,
+
+height: task.height,
+
+};
+
+});
+
+localStorage.setItem("to_do", JSON.stringify(dataToSave));
+
+}
+
+function saveBoardPosition() {
+
+localStorage.setItem("board_position", JSON.stringify({ transformX, transformY }));
+
+}
+
+function renderTasks() {
+
+taskList.innerHTML = "";
+
+tasks.forEach(task => {
+
+const div = document.createElement("div");
+
+div.className = "task" + (task.checked ? " checked" : "") + (selectedTasks.has(task.id) ? " selected" : "");
+
+div.style.left = `${task.x}px`;
+
+div.style.top = `${task.y}px`;
+
+div.style.width = `${task.width}px`;
+
+div.style.height = `${task.height}px`;
+
+div.innerHTML = `
+
+<span class="check-icon"></span>
+
+<div class="task-name">${task.name}</div>
+
+`;
+
+let isDraggingOrResizing = false;
+
+div.onclick = (e) => {
+
+e.stopPropagation();
+
+if (!isDraggingOrResizing) {
+
+if (isCtrlPressed) {
+
+// Multi-select with Ctrl
+
+if (selectedTasks.has(task.id)) {
+
+deselectTask(task.id);
+
+} else {
+
+selectTask(task.id, true);
+
+}
+
+} else if (selectedTasks.has(task.id) && selectedTasks.size > 1) {
+
+// Don't change selection if clicking on already selected task in multi-selection
+
+} else if (!task.checked) {
+
+// Regular click - complete task or select
+
+if (selectedTasks.size === 0) {
+
+saveState();
+
+task.checked = true;
+
+task.streak++;
+
+saveTasks();
+
+renderTasks();
+
+} else {
+
+selectTask(task.id);
+
+}
+
+} else {
+
+selectTask(task.id);
+
+}
+
+}
+
+};
+
+interact(div)
+
+.draggable({
+
+listeners: {
+
+start(event) {
+
+isDraggingOrResizing = true;
+
+if (!selectedTasks.has(task.id)) {
+
+selectTask(task.id);
+
+}
+
+saveState();
+
+},
+
+move(event) {
+
+if (selectedTasks.size > 1) {
+
+// Move all selected tasks
+
+selectedTasks.forEach(selectedId => {
+
+const selectedTask = tasks.find(t => t.id === selectedId);
+
+if (selectedTask) {
+
+selectedTask.x += event.dx;
+
+selectedTask.y += event.dy;
+
+}
+
+});
+
+renderTasks();
+
+} else {
+
+// Move single task
+
+task.x += event.dx;
+
+task.y += event.dy;
+
+div.style.left = `${task.x}px`;
+
+div.style.top = `${task.y}px`;
+
+}
+
+saveTasks();
+
+},
+
+end(event) {
+
+setTimeout(() => {
+
+isDraggingOrResizing = false;
+
+}, 0);
+
+},
+
+},
+
+modifiers: [
+
+interact.modifiers.restrict({
+
+restriction: 'parent',
+
+endOnly: true,
+
+}),
+
+],
+
+})
+
+.resizable({
+
+edges: { left: true, right: true, bottom: true, top: true },
+
+listeners: {
+
+start(event) {
+
+isDraggingOrResizing = true;
+
+saveState();
+
+},
+
+move(event) {
+
+task.width = event.rect.width;
+
+task.height = event.rect.height;
+
+div.style.width = `${task.width}px`;
+
+div.style.height = `${task.height}px`;
+
+task.x += event.deltaRect.left;
+
+task.y += event.deltaRect.top;
+
+div.style.left = `${task.x}px`;
+
+div.style.top = `${task.y}px`;
+
+saveTasks();
+
+},
+
+end(event) {
+
+setTimeout(() => {
+
+isDraggingOrResizing = false;
+
+}, 0);
+
+},
+
+},
+
+modifiers: [
+
+interact.modifiers.restrictSize({
+
+min: { width: 150, height: 75 },
+
+}),
+
+],
+
+});
+
+taskList.appendChild(div);
+
+});
+
+// Append selection box to board
+
+taskList.appendChild(selectionBox);
+
+}
+
+// Panning functionality
+
+let transformX = boardPosition.transformX || 0;
+
+let transformY = boardPosition.transformY || 0;
+
+// Apply saved position on load
+
+taskList.style.transform = `translate(${transformX}px, ${transformY}px)`;
+
+interact('.board').draggable({
+
+listeners: {
+
+start(event) {
+
+if (event.target === taskList) {
+
+event.target.classList.add('dragging');
+
+}
+
+},
+
+move(event) {
+
+if (event.target === taskList) {
+
+transformX += event.dx;
+
+transformY += event.dy;
+
+taskList.style.transform = `translate(${transformX}px, ${transformY}px)`;
+
+saveBoardPosition();
+
+}
+
+},
+
+end(event) {
+
+if (event.target === taskList) {
+
+event.target.classList.remove('dragging');
+
+}
+
+},
+
+},
+
+});
+
+function manualReset() {
+
+saveState();
+
+tasks.forEach(task => {
+
+if (!task.checked) {
+
+task.streak = 0;
+
+}
+
+task.checked = false;
+
+});
+
+saveTasks();
+
+renderTasks();
+
+}
+
+// Initialize
+
+saveState(); // Save initial state
+
+renderTasks();
+
+updateStatusBar();
+
+</script>
+
 </body>
-
-
 
 </html>
